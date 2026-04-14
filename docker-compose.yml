@@ -12,7 +12,7 @@ services:
       N8N_HOST: ${N8N_HOST}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       GENERIC_TIMEZONE: Europe/Moscow
-      WEBHOOK_URL: http://${N8N_HOST}:5678/
+      WEBHOOK_URL: ${WEBHOOK_URL}
     env_file:
       - .env
     volumes:
