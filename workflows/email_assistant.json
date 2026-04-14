@@ -1,16 +1,7 @@
 {
   "name": "AI Email Assistant",
-  "active": false,
   "nodes": [
     {
-      "id": "1",
-      "name": "Gmail Trigger",
-      "type": "n8n-nodes-base.gmailTrigger",
-      "typeVersion": 1,
-      "position": [
-        120,
-        260
-      ],
       "parameters": {
         "pollTimes": {
           "item": [
@@ -20,39 +11,42 @@
           ]
         },
         "simple": false,
-        "labelIds": [
-          "INBOX"
-        ],
         "filters": {
           "includeSpamTrash": false,
           "q": "is:unread"
         },
         "options": {
-          "downloadAttachments": false,
-          "format": "resolved"
+          "downloadAttachments": false
+        }
+      },
+      "id": "b3093089-2bf7-4cc7-b3fb-adf299ebbb27",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZHVxLJOKCerUkLPh",
+          "name": "Gmail account"
         }
       }
     },
     {
-      "id": "2",
-      "name": "IF Filter",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        340,
-        260
-      ],
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
-            "typeValidation": "strict"
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
           },
-          "combinator": "and",
           "conditions": [
             {
               "id": "from-not-noreply",
-              "leftValue": "={{ $json.from || '' }}",
+              "leftValue": "={{ $json.headers.from || '' }}",
               "rightValue": "noreply",
               "operator": {
                 "type": "string",
@@ -61,36 +55,36 @@
             },
             {
               "id": "from-not-no-reply",
-              "leftValue": "={{ $json.from || '' }}",
+              "leftValue": "={{ $json.headers.from || '' }}",
               "rightValue": "no-reply",
               "operator": {
                 "type": "string",
                 "operation": "notContains"
               }
             }
-          ]
-        }
-      }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ea349fee-3909-4a19-9ee1-4dd2950f7a82",
+      "name": "IF Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
     },
     {
-      "id": "3",
-      "name": "OpenAI Request",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        580,
-        260
-      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{$env.OPENAI_API_KEY}}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -98,92 +92,138 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an email assistant. Given an incoming email, do two things:\\n\\nClassify it into one of: inquiry, complaint, spam, newsletter, support, other\\nWrite a professional draft reply in the same language as the email.\\n\\nRespond ONLY with valid JSON and nothing else:\\n{\\n  \\\"category\\\": \\\"inquiry\\\",\\n  \\\"priority\\\": \\\"high|medium|low\\\",\\n  \\\"summary\\\": \\\"2-3 sentence summary of the email\\\",\\n  \\\"draft_reply\\\": \\\"Full draft reply text\\\"\\n}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"From: {{$json.from}}\\nSubject: {{$json.subject}}\\nBody:\\n{{$json.text || $json.snippet || ''}}\"\n    }\n  ]\n}"
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an email assistant. Classify the email into: inquiry, complaint, spam, newsletter, support, other. Write a professional draft reply in the same language. Respond ONLY with valid JSON: {\\\"category\\\": \\\"inquiry\\\", \\\"priority\\\": \\\"high|medium|low\\\", \\\"summary\\\": \\\"2-3 sentence summary\\\", \\\"draft_reply\\\": \\\"Full draft reply text\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"={{ 'From: ' + ($json.headers.from || '') + '\\\\nSubject: ' + ($json.subject || '') + '\\\\nBody:\\\\n' + ($json.text || $json.snippet || '').replace(/\\\"/g, '\\\\\\\\\\\"').replace(/\\n/g, '\\\\\\\\n') }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "0ebec0b4-571d-4f0f-a0ca-67ea182e1b96",
+      "name": "OpenAI Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        464,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "sdsM773MEQKhCZ4J",
+          "name": "OpenAI account 2"
+        }
       }
     },
     {
-      "id": "4",
+      "parameters": {
+        "jsCode": "const source = $input.first().json;\nconst content = source.choices?.[0]?.message?.content || '{}';\nconst parsed = JSON.parse(content);\n\nreturn [\n  {\n    json: {\n      ...source,\n      ...parsed,\n      originalEmail: $('Gmail Trigger').first().json\n    }\n  }\n];"
+      },
+      "id": "eb22a571-0ced-470f-a325-d07e46961b47",
       "name": "Parse Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        820,
-        260
-      ],
-      "parameters": {
-        "language": "javaScript",
-        "jsCode": "const source = $input.first().json;\nconst content = source.choices?.[0]?.message?.content || '{}';\nconst parsed = JSON.parse(content);\n\nreturn [\n  {\n    json: {\n      ...source,\n      ...parsed,\n      originalEmail: $('Gmail Trigger').first().json\n    }\n  }\n];"
-      }
+        704,
+        0
+      ]
     },
     {
-      "id": "5",
+      "parameters": {
+        "chatId": "=8409896342",
+        "text": "=📧 <b>New email</b>\n<b>From:</b> {{$json.originalEmail.from || $json.from}}\n<b>Subject:</b> {{$json.originalEmail.subject || $json.subject}}\n🏷 Category: {{$json.category}} | Priority: {{$json.priority}}\n📝 <b>Summary:</b>\n{{$json.summary}}\n✍️ <b>Draft reply:</b>\n{{$json.draft_reply}}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ Send",
+                    "additionalFields": {
+                      "callback_data": "=send:{{ $json.originalEmail.id }}"
+                    }
+                  },
+                  {
+                    "text": "✏️ Edit",
+                    "additionalFields": {
+                      "callback_data": "edit"
+                    }
+                  },
+                  {
+                    "text": "❌ Reject",
+                    "additionalFields": {
+                      "callback_data": "reject"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "311ee47e-83b2-44db-8037-cbe5c889f2f2",
       "name": "Telegram Card",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        1060,
-        260
+        944,
+        0
       ],
-      "parameters": {
-        "operation": "sendMessage",
-        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
-        "text": "=📧 <b>New email</b>\n<b>From:</b> {{$json.originalEmail.from || $json.from}}\n<b>Subject:</b> {{$json.originalEmail.subject || $json.subject}}\n🏷 Category: {{$json.category}} | Priority: {{$json.priority}}\n📝 <b>Summary:</b>\n{{$json.summary}}\n✍️ <b>Draft reply:</b>\n{{$json.draft_reply}}",
-        "additionalFields": {
-          "parse_mode": "HTML",
-          "reply_markup": "={\"inline_keyboard\":[[{\"text\":\"✅ Send\",\"callback_data\":\"send\"},{\"text\":\"✏️ Edit\",\"callback_data\":\"edit\"},{\"text\":\"❌ Reject\",\"callback_data\":\"reject\"}]]}"
+      "webhookId": "751413e7-ae50-4e3f-a31a-636f9137e16f",
+      "credentials": {
+        "telegramApi": {
+          "id": "IlEW2N8sTfntkf4t",
+          "name": "Telegram account"
         }
       }
     },
     {
-      "id": "6",
-      "name": "Telegram Trigger",
-      "type": "n8n-nodes-base.telegramTrigger",
-      "typeVersion": 1,
-      "position": [
-        120,
-        520
-      ],
       "parameters": {
         "updates": [
           "callback_query"
         ],
-        "additionalFields": {
-          "path": "telegram-callback"
+        "additionalFields": {}
+      },
+      "id": "0c48dfe1-5bb7-48e8-b02c-e2c2de29514f",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        272
+      ],
+      "webhookId": "846c4cf2-4454-4066-8210-b5b3fea7f012",
+      "credentials": {
+        "telegramApi": {
+          "id": "IlEW2N8sTfntkf4t",
+          "name": "Telegram account"
         }
       }
     },
     {
-      "id": "7",
-      "name": "Action Switch",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3,
-      "position": [
-        360,
-        520
-      ],
       "parameters": {
-        "mode": "rules",
         "rules": {
           "values": [
             {
               "conditions": {
                 "options": {
                   "caseSensitive": true,
-                  "typeValidation": "strict"
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
                 },
-                "combinator": "and",
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.body.callback_query.data }}",
+                    "leftValue": "={{ $json.callback_query.data }}",
                     "rightValue": "send",
                     "operator": {
                       "type": "string",
-                      "operation": "equals"
-                    }
+                      "operation": "startsWith"
+                    },
+                    "id": "27844e4b-45bc-4c2d-b841-02c4637070b6"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "send"
@@ -192,19 +232,22 @@
               "conditions": {
                 "options": {
                   "caseSensitive": true,
-                  "typeValidation": "strict"
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
                 },
-                "combinator": "and",
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.body.callback_query.data }}",
+                    "leftValue": "={{ $json.callback_query.data }}",
                     "rightValue": "edit",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "55b478a7-aff1-4acc-891d-b14d5c5b1425"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "edit"
@@ -213,65 +256,91 @@
               "conditions": {
                 "options": {
                   "caseSensitive": true,
-                  "typeValidation": "strict"
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
                 },
-                "combinator": "and",
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.body.callback_query.data }}",
+                    "leftValue": "={{ $json.callback_query.data }}",
                     "rightValue": "reject",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
-                    }
+                    },
+                    "id": "c767693a-9da8-4ea3-bf96-a3ed2e8ba210"
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "reject"
             }
           ]
-        }
-      }
+        },
+        "options": {}
+      },
+      "id": "9086a39d-0d8a-42ba-9cda-012a1829b5bf",
+      "name": "Action Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        240,
+        272
+      ]
     },
     {
-      "id": "8",
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $json.callback_query.data.split(':')[1] }}",
+        "emailType": "text",
+        "message": "={{ $json.callback_query.message.text.split('✍️ Draft reply:\\n')[1] }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "36111e85-217d-4999-96df-d2ef1ce7d0e5",
       "name": "Gmail Send",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2,
       "position": [
-        620,
-        460
+        496,
+        224
       ],
-      "parameters": {
-        "operation": "reply",
-        "messageId": "={{ $('Gmail Trigger').first().json.id || '' }}",
-        "emailType": "text",
-        "message": "={{ $('Parse Response').first().json.draft_reply || 'Placeholder reply text. Replace with the approved draft in the n8n UI.' }}",
-        "options": {
-          "appendAttribution": false
+      "webhookId": "a65b33a5-51d2-4bdc-84ce-d3d01ca30e9d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ZHVxLJOKCerUkLPh",
+          "name": "Gmail account"
         }
       }
     },
     {
-      "id": "9",
+      "parameters": {
+        "chatId": "=8409896342",
+        "text": "=✅ Done! Action: {{$json.body.callback_query.data}}",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "67036fb8-9fc3-4fff-bde3-a2a5683f6ec9",
       "name": "Telegram Confirm",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
-        860,
-        520
+        752,
+        272
       ],
-      "parameters": {
-        "operation": "sendMessage",
-        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
-        "text": "=Action received: {{$json.body.callback_query.data}}. Update this branch in the n8n UI to send a final confirmation, prompt for an edited reply, or dismiss the draft.",
-        "additionalFields": {
-          "parse_mode": "HTML"
+      "webhookId": "55d6a321-5166-4ba7-8600-3950ec125a2a",
+      "credentials": {
+        "telegramApi": {
+          "id": "IlEW2N8sTfntkf4t",
+          "name": "Telegram account"
         }
       }
     }
   ],
+  "pinData": {},
   "connections": {
     "Gmail Trigger": {
       "main": [
@@ -292,8 +361,7 @@
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "OpenAI Request": {
@@ -366,8 +434,16 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
-  "id": "ai-email-assistant-v1"
+  "versionId": "ae56ca8e-877e-44fd-a0a7-b0e373d98625",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f83b31a2aaeb4de39637031a5a86a081746c3d5f9eccf2a2b4e679554624a99a"
+  },
+  "id": "dmWHcppM1KBSlVIY",
+  "tags": []
 }
