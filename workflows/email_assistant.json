@@ -127,7 +127,7 @@
     {
       "parameters": {
         "chatId": "=8409896342",
-        "text": "=📧 <b>New email</b>\n<b>From:</b> {{$json.originalEmail.from || $json.from}}\n<b>Subject:</b> {{$json.originalEmail.subject || $json.subject}}\n🏷 Category: {{$json.category}} | Priority: {{$json.priority}}\n📝 <b>Summary:</b>\n{{$json.summary}}\n✍️ <b>Draft reply:</b>\n{{$json.draft_reply}}",
+        "text": "=📧 <b>New email</b>\n<b>From:</b> {{$json.originalEmail.from.value[0].name || $json.originalEmail.from.value[0].address}}\n<b>Subject:</b> {{$json.originalEmail.subject || $json.subject}}\n🏷 Category: {{$json.category}} | Priority: {{$json.priority}}\n📝 <b>Summary:</b>\n{{$json.summary}}\n✍️ <b>Draft reply:</b>\n{{$json.draft_reply}}",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
           "rows": [
@@ -318,7 +318,7 @@
     {
       "parameters": {
         "chatId": "=8409896342",
-        "text": "=✅ Done! Action: {{$json.body.callback_query.data}}",
+        "text": "=✅ Done! Action: {{ $json.callback_query.data.split(':')[0] }}",
         "additionalFields": {
           "parse_mode": "HTML"
         }
@@ -439,7 +439,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "ae56ca8e-877e-44fd-a0a7-b0e373d98625",
+  "versionId": "035172fd-f844-4af4-834a-907aa2bd57cf",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "f83b31a2aaeb4de39637031a5a86a081746c3d5f9eccf2a2b4e679554624a99a"
